@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  username      String          @unique
+  password      String
+  fullName      String
+  avatarUrl     String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  activityLogs  ActivityLog[]
+  comments      Comment[]
+  notifications Notification[]
+  projects      ProjectUser[]
+  workspaces    WorkspaceUser[]
+  tasks         Task[]          @relation("TaskAssignees")
+}
+
+model Workspace {
+  id        String          @id @default(uuid())
+  name      String
+  ownerId   String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  projects  Project[]
+  users     WorkspaceUser[]
+}
+
+model WorkspaceUser {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        UserRole
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Project {
+  id             String         @id @default(uuid())
+  name           String
+  workspaceId    String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  activityLogs   ActivityLog[]
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  users          ProjectUser[]
+  tasks          Task[]
+  taskPriorities TaskPriority[]
+  taskStatuses   TaskStatus[]
+}
+
+model ProjectUser {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  role      UserRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Task {
+  id           String        @id @default(uuid())
+  title        String
+  description  String?
+  projectId    String
+  statusId     String
+  order        Int
+  priorityId   String?
+  dueDate      DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?     @db.Timestamptz(6)
+  activityLogs ActivityLog[]
+  attachments  Attachment[]
+  comments     Comment[]
+  priority     TaskPriority? @relation(fields: [priorityId], references: [id], onDelete: Cascade)
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status       TaskStatus    @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  assignees    User[]        @relation("TaskAssignees")
+}
+
+model TaskStatus {
+  id        String   @id @default(uuid())
+  name      String
+  color     String
+  order     Int
+  projectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tasks     Task[]
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model TaskPriority {
+  id        String   @id @default(uuid())
+  name      String
+  color     String
+  order     Int
+  projectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tasks     Task[]
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  content   String
+  taskId    String
+  userId    String
+  createdAt DateTime @default(dbgenerated("(now() AT TIME ZONE 'utc'::text)")) @db.Timestamptz(6)
+  updatedAt DateTime @default(dbgenerated("(now() AT TIME ZONE 'utc'::text)")) @updatedAt @db.Timestamptz(6)
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  url       String
+  fileName  String
+  taskId    String
+  createdAt DateTime @default(now())
+  size      String?  @db.VarChar
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  url       String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  taskId    String?
+  projectId String?
+  action    String
+  createdAt DateTime @default(now())
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
