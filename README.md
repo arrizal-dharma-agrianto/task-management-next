@@ -1,4 +1,4 @@
-# CC Task Management System
+# CC Task Management System.
 
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
@@ -6,7 +6,12 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 First, run the development server:
 
+
 ```bash
+#setup
+npm install
+npx prisma generate
+npm run build
 npm run dev
 # or
 yarn dev

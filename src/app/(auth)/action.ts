@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs'
 import { Provider } from '@supabase/supabase-js';
 
 function now() {
@@ -12,39 +12,50 @@ function now() {
 }
 
 export async function login(formData: FormData) {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
 
-  if (!email || !password) {
+    if (!email || !password) {
+      return {
+        success: false,
+        message: 'Email and password are required.',
+        timestamp: now(),
+        status: 'validation_error',
+      };
+    }
+
+    const res = await supabase.auth.signInWithPassword({ email, password });
+
+    if (res.error) {
+      return {
+        success: false,
+        message: res.error.message || 'Login failed.',
+        timestamp: now(),
+        status: 'auth_error',
+      };
+    }
+
+    revalidatePath('/', 'layout');
+
+    return {
+      success: true,
+      message: 'Login successful.',
+      timestamp: now(),
+      status: 'success',
+    };
+
+  } catch (error: any) {
+    console.error("Login error:", error);
     return {
       success: false,
-      message: 'Email and password are required.',
+      message: error.message || 'Server error.',
       timestamp: now(),
-      status: 'validation_error',
+      status: 'server_error',
     };
   }
-
-  const res = await supabase.auth.signInWithPassword({ email, password });
-
-  if (res.error) {
-    return {
-      success: false,
-      message: res.error.message || 'Login failed.',
-      timestamp: now(),
-      status: 'auth_error',
-    };
-  }
-
-  revalidatePath('/', 'layout');
-  
-  return {
-    success: true,
-    message: 'Login successful.',
-    timestamp: now(),
-    status: 'success',
-  };
 }
 
 export async function loginWithOAuth(provider: Provider, next: string) {
